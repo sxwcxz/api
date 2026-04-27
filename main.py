@@ -4,33 +4,30 @@ import yt_dlp
 app = FastAPI()
 
 @app.get("/download")
-async def get_download_link(video_id: str):
+async def get_url(video_id: str):
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     
-    # yt-dlp ayarları: Sadece sesi en yüksek kalitede bulur
     ydl_opts = {
-    'format': 'bestaudio/best',
-    'quiet': True,
-    'no_warnings': True,
-    # YouTube bot korumasını aşmak için istemciyi taklit et
-    'youtube_include_dash_manifest': False,
-    'nocheckcertificate': True,
-    'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'https://www.youtube.com',
-    },
-    # PO Token ve diğer bot korumalarını bypass etmek için 'ios' istemcisini zorla
-    'extractor_args': {
-        'youtube': {
-            'player_client': ['ios'],
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        # KRİTİK AYARLAR: YouTube'u kandıran kısım burası
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'android', 'web'],
+                'player_skip': ['webpage', 'configs'],
+            }
+        },
+        'http_headers': {
+            'User-Agent': 'com.google.ios.youtube/19.08.2 (iPhone16,2; U; CPU iOS 17_4 like Mac OS X; en_US)',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
         }
     }
-}
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # extract_info'da download=False diyerek sadece linki çekiyoruz
             info = ydl.extract_info(video_url, download=False)
             download_url = info.get('url')
             
@@ -39,4 +36,6 @@ async def get_download_link(video_id: str):
                 
             return {"download_url": download_url}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Hatayı terminalde daha net görmek için yazdırıyoruz
+        print(f"HATA OLUŞTU: {str(e)}")
+        raise HTTPException(status_code=500, detail="YouTube Bot Korumasina Takildi")
